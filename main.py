@@ -4,17 +4,17 @@ import pyttsx3
 import requests
 import sys 
 import keys # this will store my API keys
-from google import genai
+# import google.generativeai as genai
 import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
-from google.genai import types
+# from google.genai import types
 import pyaudio
 
 
-# recognizer = sr.Recognizer()
-# engine = pyttsx3.init()
+recognizer = sr.Recognizer()
+engine = pyttsx3.init()
 
-client = genai.Client(api_key=keys.api_key_gemini)
+# client = genai.Client(api_key=keys.api_key_gemini)
 
 # import the Spotify API client   
 sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(
@@ -84,61 +84,65 @@ def will_it_rain(city="Bangalore"):
 
 # Voice of Sydney
 """VOICE"""
-# voices = engine.getProperty('voices')       #getting details of current voice
-# engine.setProperty('voice', voices[1].id)   #Female voice for Sydney cause uk
-
-# def say(text):
-#     engine.say(text)
-#     engine.runAndWait()
+voices = engine.getProperty('voices')       #getting details of current voice
+if len(voices) > 1:
+    engine.setProperty('voice', voices[1].id)   #Female voice for Sydney cause uk
 
 def say(text):
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-preview-tts",
-            contents= text,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name="Sulafat"
-                        )
-                    )
-                )
-            )
-        )
+    engine.say(text)
+    engine.runAndWait()
 
-        audio_data = response.candidates[0].content.parts[0].inline_data.data
-
-        p = pyaudio.PyAudio()
-        stream = p.open(format=pyaudio.paInt16,
-                        channels=1,
-                        rate=24000,
-                        output=True)
-        stream.write(audio_data)
-        stream.stop_stream()
-        stream.close()
-        p.terminate()
-
-    except Exception as e:
-        print(f"❌ Gemini TTS failed: {e}")
+# def say(text):
+#     try:
+#         response = client.models.generate_content(
+#             model="gemini-2.5-flash-preview-tts",
+#             contents= text,
+#             config=types.GenerateContentConfig(
+#                 response_modalities=["AUDIO"],
+#                 speech_config=types.SpeechConfig(
+#                     voice_config=types.VoiceConfig(
+#                         prebuilt_voice_config=types.PrebuiltVoiceConfig(
+#                             voice_name="Sulafat"
+#                         )
+#                     )
+#                 )
+#             )
+#         )
+# 
+#         audio_data = response.candidates[0].content.parts[0].inline_data.data
+# 
+#         p = pyaudio.PyAudio()
+#         stream = p.open(format=pyaudio.paInt16,
+#                         channels=1,
+#                         rate=24000,
+#                         output=True)
+#         stream.write(audio_data)
+#         stream.stop_stream()
+#         stream.close()
+#         p.terminate()
+# 
+#     except Exception as e:
+#         print(f"❌ Gemini TTS failed: {e}")
 
         
 
 
 def aiProcess(command): # from client2.py
+    # Since we can't use Gemini right now, we'll return a simple response.
+    print(f"AI would process: {command}")
+    return "I can't use my full brain right now, but I heard you say " + command
     # client = genai.Client(api_key=keys.api_key_gemini)
-    system_role = (
-    "You are Sydney, a friendly, intelligent, and slightly witty female virtual assistant. "
-    "You help users with tasks like answering questions, giving updates, or playing music. "
-    "Speak in a natural, conversational but professional tone suitable for a voice assistant. "
-    "Keep your responses clear and concise — under 100 words unless the user specifically asks for a detailed or extended answer. "
-    "Avoid technical jargon unless requested. Stay polite, calm, and helpful at all times. "
-    "Only respond to the user's query below:")
-    user_role = command
-    response = client.models.generate_content(model="gemini-2.5-flash",
-        contents= system_role + user_role)
-    return response.text
+    # system_role = (
+    # "You are Sydney, a friendly, intelligent, and slightly witty female virtual assistant. "
+    # "You help users with tasks like answering questions, giving updates, or playing music. "
+    # "Speak in a natural, conversational but professional tone suitable for a voice assistant. "
+    # "Keep your responses clear and concise — under 100 words unless the user specifically asks for a detailed or extended answer. "
+    # "Avoid technical jargon unless requested. Stay polite, calm, and helpful at all times. "
+    # "Only respond to the user's query below:")
+    # user_role = command
+    # response = client.models.generate_content(model="gemini-2.5-flash",
+    #     contents= system_role + user_role)
+    # return response.text
 
 def processCommand(c):
     if "open google" in c.lower():
@@ -222,37 +226,36 @@ def processCommand(c):
         
 
 if __name__ == "__main__":
-    say("Initializing Sydney. . ...")
+    say("Initializing Sydney. . ..")
     while True:
 
         # listen for the wake word "Sidney"
         # obtain audio from the microphone
         r = sr.Recognizer()
         
-        print("recognising...") # since it takes time to recognise I put this for UX
-       
-
         # recognize speech using Google cause Sphinx is just not it:(
         try:
             with sr.Microphone() as source:
-                print("Listening...")
-                audio = r.listen(source)#, timeout = 3, phrase_time_limit=1) 
+                print("Calibrating for ambient noise... Please wait.")
+                r.adjust_for_ambient_noise(source, duration=1)
+                print("Listening for wake word (Sydney)...")
+                audio = r.listen(source)
             word = r.recognize_google(audio)
-            # print(word)
+            print(f"Heard: {word}")
             if(word.lower() == "sidney" or word.lower() == "sydney"):
                 say("yes")
                 # listen for my command
                 with sr.Microphone() as source:
-                    print("Sydney Active..")
-                    audio = r.listen(source)#, timeout= 3, phrase_time_limit=1)
+                    print("Sydney Active.. Listening for your command...")
+                    r.adjust_for_ambient_noise(source, duration=1)
+                    audio = r.listen(source, phrase_time_limit=5)
                     command = r.recognize_google(audio)
-                    # print(command)
+                    print(f"Command received: {command}")
                     processCommand(command)
-                    command = r.recognize_google(audio)
 
         except sr.UnknownValueError:
-            print("I'm sorry, I could not understand audio")
+            print("I'm sorry, I could not understand the audio. Please try again.")
         except sr.RequestError as e:
-            print("Sidney error; {0}".format(e))
-        except sr.WaitTimeoutError as w:
-            print(" ")
+            print(f"Could not request results from Google Speech Recognition service; {e}")
+        except sr.WaitTimeoutError:
+            print("Listening timed out while waiting for a command.")
